@@ -1,0 +1,9 @@
+yfinance
+psycopg2-binary
+pandas
+numpy
+scikit-learn
+feedparser
+joblib
+matplotlib
+seaborn
