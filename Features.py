@@ -140,3 +140,61 @@ def build_tfidf_per_date(ticker: str) -> dict:
         for i, row in grouped.iterrows()
     }
  
+
+def build_and_store_features(ticker: str):
+    conn = get_connection()
+    df   = pd.read_sql(
+        "SELECT date, open, high, low, close, volume FROM ohlcv WHERE ticker = %s ORDER BY date",
+        conn, params=(ticker,)
+    )
+    conn.close()
+ 
+    if df.empty:
+        print(f"[Features] No OHLCV data found for {ticker}")
+        return
+ 
+    df["date"] = pd.to_datetime(df["date"])
+    df.sort_values("date", inplace=True)
+    df.set_index("date", inplace=True)
+ 
+    df          = build_ohlcv_features(df)
+    df["label"] = make_label(df["close"])
+    df.dropna(inplace=True)
+ 
+    tfidf_map = build_tfidf_per_date(ticker)
+ 
+    conn = get_connection()
+    cur  = conn.cursor()
+ 
+    for idx_date, row in df.iterrows():
+        date_key  = idx_date.date()
+        tfidf_vec = tfidf_map.get(date_key, [])
+ 
+        cur.execute("""
+            INSERT INTO features (ticker, date, rsi, macd, macd_signal, rolling_vol, tfidf_vector, label)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (ticker, date) DO UPDATE
+                SET rsi=EXCLUDED.rsi, macd=EXCLUDED.macd,
+                    macd_signal=EXCLUDED.macd_signal,
+                    rolling_vol=EXCLUDED.rolling_vol,
+                    tfidf_vector=EXCLUDED.tfidf_vector,
+                    label=EXCLUDED.label
+        """, (
+            ticker, date_key,
+            float(row["rsi_14"]),
+            float(row["macd"]),
+            float(row["macd_signal"]),
+            float(row["rolling_vol_20"]),
+            json.dumps(tfidf_vec),
+            int(row["label"])
+        ))
+ 
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"[Features] {ticker} — {len(df)} rows, {len(OHLCV_FEATURE_COLS)} OHLCV features")
+ 
+ 
+def run_feature_engineering():
+    for ticker in TICKERS:
+        build_and_store_features(ticker)
