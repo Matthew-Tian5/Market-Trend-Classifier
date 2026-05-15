@@ -103,3 +103,13 @@ def build_ohlcv_features(df: pd.DataFrame) -> pd.DataFrame:
     df["hl_range"] = (high - low) / close          # normalized high-low spread
  
     return df
+
+
+    OHLCV_FEATURE_COLS = [
+    "rsi_14", "macd", "macd_signal", "macd_hist",
+    "sma_10", "sma_50", "ema_12", "price_vs_sma10", "price_vs_sma50",
+    "rolling_vol_5", "rolling_vol_20", "bb_width", "bb_pct",
+    "volume_change", "volume_ratio", "obv",
+    "return_1d", "return_5d", "hl_range"
+]
+ 
