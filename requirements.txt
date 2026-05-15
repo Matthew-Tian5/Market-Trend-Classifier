@@ -7,3 +7,4 @@ feedparser
 joblib
 matplotlib
 seaborn
+sqlalchemy
