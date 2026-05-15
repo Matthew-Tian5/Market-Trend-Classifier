@@ -50,3 +50,16 @@ def compute_bollinger_bands(close: pd.Series, window: int = 20):
     bb_pct   = (close - lower) / (upper - lower)
     return bb_width, bb_pct
  
+
+def compute_rolling_volatility(close: pd.Series, window: int) -> pd.Series:
+    """Annualized rolling standard deviation of log returns."""
+    log_returns = np.log(close / close.shift(1))
+    return log_returns.rolling(window).std() * np.sqrt(252)
+ 
+ 
+def compute_obv(close: pd.Series, volume: pd.Series) -> pd.Series:
+    """On-Balance Volume — cumulative volume in the direction of price movement."""
+    direction = np.sign(close.diff()).fillna(0)
+    return (direction * volume).cumsum()
+ 
+ 
