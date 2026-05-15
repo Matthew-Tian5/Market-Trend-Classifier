@@ -105,7 +105,7 @@ def build_ohlcv_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-    OHLCV_FEATURE_COLS = [
+OHLCV_FEATURE_COLS = [
     "rsi_14", "macd", "macd_signal", "macd_hist",
     "sma_10", "sma_50", "ema_12", "price_vs_sma10", "price_vs_sma50",
     "rolling_vol_5", "rolling_vol_20", "bb_width", "bb_pct",
