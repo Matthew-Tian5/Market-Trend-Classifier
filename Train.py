@@ -8,8 +8,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from config import DB_CONFIG, TICKERS
-from features import build_ohlcv_features, make_label, OHLCV_FEATURE_COLS
+from Config import DB_CONFIG, TICKERS
+from Features import build_ohlcv_features, make_label, OHLCV_FEATURE_COLS
 
 
 def get_connection():
@@ -23,12 +23,7 @@ def get_engine():
 
 
 def load_feature_matrix(tickers: list) -> pd.DataFrame:
-    """
-    For each ticker:
-      1. Loads raw OHLCV and recomputes all 19 engineered features.
-      2. Loads TF-IDF vectors from the features table and joins on date.
-    Returns a combined dataframe ready for training.
-    """
+
     engine = get_engine()
     all_dfs = []
 
