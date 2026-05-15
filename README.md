@@ -37,10 +37,12 @@ weighted avg       0.52      0.53      0.50      2109
 
 **Confusion Matrix:**
 
+![Confusion Matrix](confusion_matrix.png)
+
 ```
                  Pred Down   Pred Up
-Actual Down        265         717
-Actual Up          282         845
+Actual Down        266         716
+Actual Up          280         847
 ```
 
 ---
