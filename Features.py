@@ -113,3 +113,30 @@ def build_ohlcv_features(df: pd.DataFrame) -> pd.DataFrame:
     "return_1d", "return_5d", "hl_range"
 ]
  
+
+
+def build_tfidf_per_date(ticker: str) -> dict:
+    """
+    Groups all headlines for a ticker by date, fits a TF-IDF vectorizer,
+    and returns {date: vector_as_list}.
+    Note: in a strict no-leakage setup, fit the vectorizer on train dates only.
+    """
+    conn = get_connection()
+    df   = pd.read_sql(
+        "SELECT date, headline FROM headlines WHERE ticker = %s ORDER BY date",
+        conn, params=(ticker,)
+    )
+    conn.close()
+ 
+    if df.empty:
+        return {}
+ 
+    grouped    = df.groupby("date")["headline"].apply(lambda x: " ".join(x)).reset_index()
+    vectorizer = TfidfVectorizer(max_features=50, stop_words="english")
+    tfidf_mat  = vectorizer.fit_transform(grouped["headline"])
+ 
+    return {
+        row["date"]: tfidf_mat[i].toarray().flatten().tolist()
+        for i, row in grouped.iterrows()
+    }
+ 
