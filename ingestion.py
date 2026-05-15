@@ -36,3 +36,29 @@ def ingest_ohlcv(ticker: str):
     cur.close()
     conn.close()
     print(f"[OHLCV] Ingested {len(df)} rows for {ticker}")
+
+    
+def ingest_headlines(ticker: str):
+
+    url  = f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
+    feed = feedparser.parse(url)
+ 
+    conn = get_connection()
+    cur  = conn.cursor()
+ 
+    for entry in feed.entries:
+        pub = entry.get("published_parsed")
+        if pub is None:
+            continue
+        pub_date = date(pub.tm_year, pub.tm_mon, pub.tm_mday)
+        headline = entry.get("title", "")
+ 
+        cur.execute("""
+            INSERT INTO headlines (ticker, date, headline)
+            VALUES (%s, %s, %s)
+        """, (ticker, pub_date, headline))
+ 
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"[Headlines] Ingested {len(feed.entries)} headlines for {ticker}")
