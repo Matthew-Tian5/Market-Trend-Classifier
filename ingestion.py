@@ -62,3 +62,14 @@ def ingest_headlines(ticker: str):
     cur.close()
     conn.close()
     print(f"[Headlines] Ingested {len(feed.entries)} headlines for {ticker}")
+
+
+     
+def run_ingestion():
+    for ticker in TICKERS:
+        ingest_ohlcv(ticker)
+        ingest_headlines(ticker)
+ 
+ 
+if __name__ == "__main__":
+    run_ingestion()
