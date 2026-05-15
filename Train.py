@@ -3,49 +3,72 @@ import pandas as pd
 import numpy as np
 import json
 import joblib
+from sqlalchemy import create_engine
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from Config import DB_CONFIG, TICKERS
-from Features import OHLCV_FEATURE_COLS
+from config import DB_CONFIG, TICKERS
+from features import build_ohlcv_features, make_label, OHLCV_FEATURE_COLS
+
 
 def get_connection():
     return psycopg2.connect(**DB_CONFIG)
- 
- 
+
+
+def get_engine():
+    c = DB_CONFIG
+    url = f"postgresql+psycopg2://{c['user']}:{c['password']}@{c['host']}:{c['port']}/{c['database']}"
+    return create_engine(url)
+
+
 def load_feature_matrix(tickers: list) -> pd.DataFrame:
     """
-    Pulls all rows from the features table for the given tickers.
-    Expands the TF-IDF JSONB column into individual float columns (tfidf_0, tfidf_1, ...).
+    For each ticker:
+      1. Loads raw OHLCV and recomputes all 19 engineered features.
+      2. Loads TF-IDF vectors from the features table and joins on date.
+    Returns a combined dataframe ready for training.
     """
-    conn = get_connection()
-    rows = []
- 
+    engine = get_engine()
+    all_dfs = []
+
     for ticker in tickers:
-        df = pd.read_sql(
-            "SELECT * FROM features WHERE ticker = %s ORDER BY date",
-            conn, params=(ticker,)
+        # Load and engineer OHLCV features
+        ohlcv = pd.read_sql(
+            f"SELECT date, open, high, low, close, volume FROM ohlcv WHERE ticker = '{ticker}' ORDER BY date",
+            engine
         )
-        rows.append(df)
- 
-    conn.close()
-    df = pd.concat(rows, ignore_index=True)
- 
-    tfidf_expanded = pd.DataFrame(
-        df["tfidf_vector"].apply(
-            lambda x: json.loads(x) if isinstance(x, str) else (x or [])
-        ).tolist()
-    ).fillna(0)
-    tfidf_expanded.columns = [f"tfidf_{i}" for i in tfidf_expanded.columns]
- 
-    return pd.concat([df.drop(columns=["tfidf_vector"]), tfidf_expanded], axis=1)
+        ohlcv["date"] = pd.to_datetime(ohlcv["date"])
+        ohlcv.sort_values("date", inplace=True)
+        ohlcv.set_index("date", inplace=True)
 
+        ohlcv          = build_ohlcv_features(ohlcv)
+        ohlcv["label"] = make_label(ohlcv["close"])
+        ohlcv.dropna(inplace=True)
+        ohlcv["ticker"] = ticker
 
+        # Load TF-IDF vectors
+        tfidf_df = pd.read_sql(
+            f"SELECT date, tfidf_vector FROM features WHERE ticker = '{ticker}' ORDER BY date",
+            engine
+        )
+        tfidf_df["date"] = pd.to_datetime(tfidf_df["date"])
+        tfidf_df.set_index("date", inplace=True)
 
+        # Expand TF-IDF JSON into columns
+        tfidf_expanded = pd.DataFrame(
+            tfidf_df["tfidf_vector"].apply(
+                lambda x: json.loads(x) if isinstance(x, str) else (x or [])
+            ).tolist(),
+            index=tfidf_df.index
+        ).fillna(0)
+        tfidf_expanded.columns = [f"tfidf_{i}" for i in tfidf_expanded.columns]
 
+    
+        combined = ohlcv.join(tfidf_expanded, how="left")
+        all_dfs.append(combined)
 
-
+    return pd.concat(all_dfs)
 
 
 def train_model():
@@ -62,13 +85,12 @@ def train_model():
     print(f"Dataset     : {X.shape[0]} samples")
     print(f"Features    : {len(OHLCV_FEATURE_COLS)} OHLCV + {len(TFIDF_COLS)} TF-IDF = {len(ALL_FEATURES)} total")
 
-    # ── Stage 1: Baseline (default GBM, no tuning) ───────────────────────────
+ 
     baseline = Pipeline([
         ("scaler", StandardScaler()),
         ("clf", GradientBoostingClassifier(random_state=42))
     ])
-    baseline_scores = cross_val_score(baseline, X, y, cv=cv, scoring="f1")
-    baseline_f1     = baseline_scores.mean()
+    baseline_f1 = cross_val_score(baseline, X, y, cv=cv, scoring="f1").mean()
     print(f"\nBaseline F1 (default params): {baseline_f1:.4f}")
 
     # ── Stage 2: Tuned (GridSearchCV over key GBM hyperparameters) ───────────
@@ -99,7 +121,6 @@ def train_model():
     print(f"Improvement : +{tuned_f1 - baseline_f1:.4f}")
     print(f"Best params : {grid_search.best_params_}")
 
-    # Save model and feature list for evaluation / inference
     joblib.dump({"model": grid_search.best_estimator_, "features": ALL_FEATURES}, "model.pkl")
     print("\nModel saved → model.pkl")
 
