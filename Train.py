@@ -7,8 +7,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from config import DB_CONFIG, TICKERS
-from features import OHLCV_FEATURE_COLS
+from Config import DB_CONFIG, TICKERS
+from Features import OHLCV_FEATURE_COLS
 
 def get_connection():
     return psycopg2.connect(**DB_CONFIG)

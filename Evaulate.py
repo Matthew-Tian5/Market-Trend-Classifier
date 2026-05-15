@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.metrics import classification_report, f1_score, confusion_matrix
-from config import TICKERS
-from train import load_feature_matrix
+from Config import TICKERS
+from Train import load_feature_matrix
 
 def evaluate():
     df       = load_feature_matrix(TICKERS)

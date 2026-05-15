@@ -1,7 +1,7 @@
-from ingestion import run_ingestion
-from features  import run_feature_engineering
-from train     import train_model
-from evaluate  import evaluate
+from Ingestion import run_ingestion
+from Features  import run_feature_engineering
+from Train     import train_model
+from Evaluate  import evaluate
  
  
 if __name__ == "__main__":
