@@ -63,3 +63,43 @@ def compute_obv(close: pd.Series, volume: pd.Series) -> pd.Series:
     return (direction * volume).cumsum()
  
  
+
+def build_ohlcv_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Applies all 19 engineered features to a raw OHLCV dataframe.
+    Input must have columns: open, high, low, close, volume.
+    """
+    close  = df["close"]
+    volume = df["volume"]
+    high   = df["high"]
+    low    = df["low"]
+ 
+    # Momentum
+    df["rsi_14"]                             = compute_rsi(close)
+    df["macd"], df["macd_signal"], df["macd_hist"] = compute_macd(close)
+ 
+    # Trend / moving averages
+    df["sma_10"]         = close.rolling(10).mean()
+    df["sma_50"]         = close.rolling(50).mean()
+    df["ema_12"]         = close.ewm(span=12, adjust=False).mean()
+    df["price_vs_sma10"] = close / df["sma_10"]    # how far price deviates from short MA
+    df["price_vs_sma50"] = close / df["sma_50"]    # how far price deviates from long MA
+ 
+    # Volatility
+    df["rolling_vol_5"]          = compute_rolling_volatility(close, 5)
+    df["rolling_vol_20"]         = compute_rolling_volatility(close, 20)
+    df["bb_width"], df["bb_pct"] = compute_bollinger_bands(close)
+ 
+    # Volume
+    df["volume_change"] = volume.pct_change()
+    df["volume_ratio"]  = volume / volume.rolling(20).mean()  # vs 20-day avg
+    df["obv"]           = compute_obv(close, volume)
+ 
+    # Returns
+    df["return_1d"] = close.pct_change(1)
+    df["return_5d"] = close.pct_change(5)
+ 
+    # Intraday range
+    df["hl_range"] = (high - low) / close          # normalized high-low spread
+ 
+    return df
